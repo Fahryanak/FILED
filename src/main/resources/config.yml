@@ -1,0 +1,2 @@
+download-location: plugin      # nilai bisa "plugin", "server", atau "custom"
+custom-path: ""                # jalur khusus untuk "custom"

@@ -1,5 +1,6 @@
 package com.example.downloadplugin;
 
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -16,11 +17,38 @@ import java.util.Set;
 public class DownloadPlugin extends JavaPlugin {
 
     private final File linkFile = new File(getDataFolder(), "link.txt");
-    private final File downloadDir = new File(getDataFolder(), "download");
+    private File downloadDir;
     private final Set<String> downloadedLinks = new HashSet<>();
 
     @Override
     public void onEnable() {
+        // Save default config if not exist
+        saveDefaultConfig();
+
+        // Load config
+        FileConfiguration config = getConfig();
+        String downloadLocation = config.getString("download-location", "plugin");
+        String customPath = config.getString("custom-path", "");
+
+        // Determine download directory based on config
+        switch (downloadLocation.toLowerCase()) {
+            case "server":
+                downloadDir = new File(getServer().getWorldContainer(), "downloads");
+                break;
+            case "custom":
+                if (!customPath.isEmpty()) {
+                    downloadDir = new File(customPath);
+                } else {
+                    getLogger().severe("Custom path is empty! Defaulting to plugin directory.");
+                    downloadDir = new File(getDataFolder(), "download");
+                }
+                break;
+            case "plugin":
+            default:
+                downloadDir = new File(getDataFolder(), "download");
+                break;
+        }
+
         // Buat direktori plugin jika belum ada
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();

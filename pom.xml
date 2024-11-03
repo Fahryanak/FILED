@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.example</groupId>
     <artifactId>downloadplugin</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1</version> <!-- Ubah versi di sini -->
     <packaging>jar</packaging>
 
     <name>DownloadPlugin</name>

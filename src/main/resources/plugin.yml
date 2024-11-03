@@ -1,5 +1,5 @@
 name: DownloadPlugin
-version: 1.0
+version: 1.1               # Ubah versi di sini
 main: com.example.downloadplugin.DownloadPlugin
 description: Plugin to download files from links in link.txt
 author: Fahryanak
