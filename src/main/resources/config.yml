@@ -1,2 +1,5 @@
-download-location: plugin      # nilai bisa "plugin", "server", atau "custom"
-custom-path: ""                # jalur khusus untuk "custom"
+# Configuration options for DownloadPlugin
+download-location: plugin  # Options: server, custom, plugin
+custom-path: ""            # Path to download directory if using custom download-location
+check-interval: 60         # Interval in seconds to check for new links
+concurrent-downloads: 4    # Number of concurrent downloads
