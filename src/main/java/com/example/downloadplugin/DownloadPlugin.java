@@ -1,6 +1,8 @@
 package com.example.downloadplugin;
 
 import org.apache.commons.io.FileUtils;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,20 +24,26 @@ public class DownloadPlugin extends JavaPlugin {
     private final File linkFile = new File(getDataFolder(), "link.txt");
     private File downloadDir;
     private final Set<String> downloadedLinks = new HashSet<>();
+    private int checkInterval;
+    private int concurrentDownloads;
 
     @Override
     public void onEnable() {
-        // Save default config if not exist
-        saveDefaultConfig();
+        loadConfig();
+        setupDownloadDirectory();
+        createLinkFile();
+        scheduleDownloadTask();
+    }
 
-        // Load config
+    private void loadConfig() {
+        saveDefaultConfig();
         FileConfiguration config = getConfig();
+        checkInterval = config.getInt("check-interval", 60);
+        concurrentDownloads = config.getInt("concurrent-downloads", 4);
+
         String downloadLocation = config.getString("download-location", "plugin");
         String customPath = config.getString("custom-path", "");
-        int checkInterval = config.getInt("check-interval", 60);
-        int concurrentDownloads = config.getInt("concurrent-downloads", 4);
 
-        // Determine download directory based on config
         switch (downloadLocation.toLowerCase()) {
             case "server":
                 downloadDir = new File(getServer().getWorldContainer(), "downloads");
@@ -53,13 +61,18 @@ public class DownloadPlugin extends JavaPlugin {
                 downloadDir = new File(getDataFolder(), "download");
                 break;
         }
+    }
 
-        // Buat direktori plugin jika belum ada
+    private void setupDownloadDirectory() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
+        if (!downloadDir.exists()) {
+            downloadDir.mkdirs();
+        }
+    }
 
-        // Buat file link.txt jika belum ada
+    private void createLinkFile() {
         if (!linkFile.exists()) {
             try {
                 linkFile.createNewFile();
@@ -68,18 +81,15 @@ public class DownloadPlugin extends JavaPlugin {
                 e.printStackTrace();
             }
         }
+    }
 
-        // Buat direktori download jika belum ada
-        if (!downloadDir.exists()) {
-            downloadDir.mkdirs();
-        }
-
+    private void scheduleDownloadTask() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 checkForNewLinks();
             }
-        }.runTaskTimer(this, 0L, 20L * checkInterval); // Check every interval seconds
+        }.runTaskTimer(this, 0L, 20L * checkInterval);
     }
 
     private void checkForNewLinks() {
@@ -103,7 +113,6 @@ public class DownloadPlugin extends JavaPlugin {
 
     private void downloadFile(String link) {
         getLogger().info("Starting download from: " + link);
-        long startTime = System.currentTimeMillis();
         try {
             URL url = new URL(link);
             String fileName = Paths.get(url.getPath()).getFileName().toString();
@@ -116,16 +125,13 @@ public class DownloadPlugin extends JavaPlugin {
 
             try (InputStream in = url.openStream()) {
                 Files.copy(in, outputFile.toPath());
-                long endTime = System.currentTimeMillis();
-                getLogger().info("Downloaded file to: " + outputFile.getAbsolutePath() + " in " + (endTime - startTime) + " ms");
+                getLogger().info("Downloaded file to: " + outputFile.getAbsolutePath());
             }
 
         } catch (MalformedURLException e) {
             getLogger().severe("Invalid URL: " + link);
         } catch (IOException e) {
             getLogger().severe("Error downloading file from: " + link);
-        } catch (Exception e) {
-            getLogger().severe("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -148,8 +154,31 @@ public class DownloadPlugin extends JavaPlugin {
             getLogger().severe("Invalid URL: " + link);
         } catch (IOException e) {
             getLogger().severe("Error downloading directory from: " + link);
-        } catch (Exception e) {
-            getLogger().severe("Unexpected error: " + e.getMessage());
         }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("filed")) {
+            if (args.length > 0) {
+                if (args[0].equalsIgnoreCase("reload")) {
+                    reloadConfig();
+                    loadConfig();
+                    sender.sendMessage("Configuration reloaded!");
+                    return true;
+                } else if (args[0].equalsIgnoreCase("download") && args.length == 2) {
+                    String link = args[1];
+                    if (!downloadedLinks.contains(link)) {
+                        downloadFile(link);
+                        downloadedLinks.add(link);
+                        sender.sendMessage("Downloaded file from: " + link);
+                    } else {
+                        sender.sendMessage("Link already downloaded!");
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
