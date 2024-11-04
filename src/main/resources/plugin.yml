@@ -1,6 +1,10 @@
-name: DownloadPlugin
-version: 1.1
+name: FILED
+version: 1.2
 main: com.example.downloadplugin.DownloadPlugin
 description: Plugin to download files from links in link.txt
 author: Fahryanak
 api-version: 1.21
+commands:
+  filed:
+    description: Manage FILED plugin
+    usage: /<command> <reload|download>
