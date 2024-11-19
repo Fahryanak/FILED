@@ -1,90 +1,141 @@
-package com.filed.FiledPlugin;
+package com.filed;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class Filed extends JavaPlugin {
+public class FiledPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info("FILED plugin has been enabled!");
-        // Load configuration if needed
+        getLogger().info("FiledPlugin has been enabled!");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("FILED plugin has been disabled!");
+        getLogger().info("FiledPlugin has been disabled!");
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (cmd.getName().equalsIgnoreCase("filed")) {
-            if (args.length == 0) {
-                return false; // Show usage
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("filed")) {
+            if (args.length < 3) {
+                sender.sendMessage("Usage: /filed download <link> <main|plugins|custom> [customPath] [speed]");
+                return true;
             }
 
-            switch (args[0].toLowerCase()) {
-                case "download":
-                    if (args.length < 2) {
-                        sender.sendMessage("Usage: /filed download <link>");
-                        return true;
-                    }
-                    String link = args[1];
-                    downloadFile(link, sender);
-                    return true;
+            String action = args[0].toLowerCase();
+            if (action.equals("download")) {
+                String url = args[1];
+                String directory = args[2].toLowerCase();
+                String customPath = args.length >= 4 ? args[3] : null;
+                double speed = args.length >= 5 ? Double.parseDouble(args[4]) : 5.0; // Default 5 MBps
 
-                case "reload":
-                    // Reload configuration logic here
-                    sender.sendMessage("Configuration reloaded!");
+                if (speed > 5.0) {
+                    sender.sendMessage("Speed cannot exceed 5 MBps.");
                     return true;
+                }
 
-                default:
-                    return false; // Show usage
+                downloadFile(url, directory, customPath, speed, sender);
+                return true;
             }
+
+            sender.sendMessage("Unknown command. Usage: /filed <download|reload|list>");
+            return true;
         }
         return false;
     }
 
-    private void downloadFile(String fileURL, CommandSender sender) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(fileURL);
-                HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-                httpConn.setRequestMethod("GET");
-                httpConn.connect();
+    private void downloadFile(String fileURL, String directory, String customPath, double speed, CommandSender sender) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                HttpURLConnection httpConn = null;
+                try {
+                    URL url = new URL(fileURL);
+                    httpConn = (HttpURLConnection) url.openConnection();
+                    httpConn.setRequestMethod("GET");
+                    httpConn.connect();
 
-                if (httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    sender.sendMessage("No file to download. Server replied HTTP code: " + httpConn.getResponseCode());
-                    return;
-                }
+                    if (httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                        sender.sendMessage("Failed to download file. HTTP response code: " + httpConn.getResponseCode());
+                        return;
+                    }
 
-                // Save file to plugins directory
-                File outputFile = new File(getDataFolder(), "downloaded_file"); // Change the filename as needed
-                try (InputStream in = new BufferedInputStream(httpConn.getInputStream());
-                     FileOutputStream out = new FileOutputStream(outputFile)) {
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
+                    // Get file name from URL or HTTP header
+                    String fileName = new File(fileURL).getName();
+                    if (fileName.isEmpty()) {
+                        String contentDisposition = httpConn.getHeaderField("Content-Disposition");
+                        if (contentDisposition != null && contentDisposition.contains("filename=")) {
+                            fileName = contentDisposition.split("filename=")[1].replace("\"", "");
+                        } else {
+                            fileName = "downloaded_file";
+                        }
+                    }
+
+                    // Determine save directory
+                    File outputDir;
+                    switch (directory) {
+                        case "main":
+                            outputDir = new File(".");
+                            break;
+                        case "plugins":
+                            outputDir = getDataFolder().getParentFile();
+                            break;
+                        case "custom":
+                            if (customPath == null || customPath.isEmpty()) {
+                                sender.sendMessage("Custom path is required for 'custom' directory option.");
+                                return;
+                            }
+                            outputDir = new File(customPath);
+                            if (!outputDir.exists()) {
+                                outputDir.mkdirs();
+                            }
+                            break;
+                        default:
+                            sender.sendMessage("Invalid directory option. Use <main|plugins|custom>.");
+                            return;
+                    }
+
+                    // Save file
+                    File outputFile = new File(outputDir, fileName);
+                    try (InputStream in = new BufferedInputStream(httpConn.getInputStream());
+                         FileOutputStream out = new FileOutputStream(outputFile)) {
+
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        long totalBytesRead = 0;
+                        long startTime = System.currentTimeMillis();
+                        double maxBytesPerSecond = speed * 1024 * 1024; // Convert speed to bytes per second
+
+                        while ((bytesRead = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, bytesRead);
+                            totalBytesRead += bytesRead;
+
+                            // Enforce speed limit
+                            long elapsedTime = System.currentTimeMillis() - startTime;
+                            double expectedTime = (totalBytesRead / maxBytesPerSecond) * 1000; // Expected time in ms
+                            if (elapsedTime < expectedTime) {
+                                Thread.sleep((long) (expectedTime - elapsedTime));
+                            }
+                        }
+                    }
+
+                    sender.sendMessage("File downloaded successfully to: " + outputFile.getAbsolutePath());
+                } catch (IOException | InterruptedException e) {
+                    sender.sendMessage("Error downloading file: " + e.getMessage());
+                } finally {
+                    if (httpConn != null) {
+                        httpConn.disconnect();
                     }
                 }
-
-                sender.sendMessage("File downloaded successfully: " + outputFile.getAbsolutePath());
-            } catch (IOException e) {
-                sender.sendMessage("Error downloading file: " + e.getMessage());
-            } finally {
-                httpConn.disconnect();
             }
-        }).start();
+        }.runTaskAsynchronously(this);
     }
-  }
+}
