@@ -1,3 +1,4 @@
+main: com.filed.FiledPlugin
 name: FILED
 version: 1.2
 main: com.filed.Filed
