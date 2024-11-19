@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - trigger.txt
   pull_request:
+    paths:
+      - trigger.txt
 
 jobs:
   build:
