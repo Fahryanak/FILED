@@ -1,9 +1,8 @@
+name: FiledPlugin
 main: com.filed.FiledPlugin
-name: FILED
-version: 1.2
-main: com.filed.Filed
-api-version: 1.21
+version: 1.3-SNAPSHOT
+description: A plugin to download files to various directories and support non-direct links.
 commands:
   filed:
-    description: Command for FILED plugin
-    usage: /filed <download|reload>
+    description: Main command for FiledPlugin.
+    usage: /filed <download|reload|list> [args]
