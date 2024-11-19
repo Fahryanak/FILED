@@ -7,3 +7,7 @@ Tested on papermc 1.21.1
 Usage
 
 /filed download <link>
+
+
+
+PLEASE DOWNLOAD PLUGIN FROM RELEASE ONLY 
