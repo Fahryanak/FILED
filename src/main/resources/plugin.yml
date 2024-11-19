@@ -1,0 +1,8 @@
+name: FILED
+version: 1.2
+main: com.filed.Filed
+api-version: 1.21
+commands:
+  filed:
+    description: Command for FILED plugin
+    usage: /filed <download|reload>
