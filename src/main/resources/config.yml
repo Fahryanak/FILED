@@ -1,0 +1,2 @@
+default-download-path: "plugins/"
+default-speed-limit: 1.0 # Speed in MBps
