@@ -1,4 +1,4 @@
-package com.filed;
+package com.filed.FiledPlugin;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
