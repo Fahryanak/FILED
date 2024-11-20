@@ -1,86 +1,97 @@
 package com.hansproduction.filed;
 
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandSender;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.text.DecimalFormat;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class FileDownloadManager {
-
     private final FileDownloaderPlugin plugin;
-    private final String defaultDownloadPath;
-    private final double defaultSpeedLimit;
+    private long defaultSpeedLimit;
+    private Path defaultSavePath;
 
-    public FileDownloadManager(FileDownloaderPlugin plugin, String defaultDownloadPath, double defaultSpeedLimit) {
+    public FileDownloadManager(FileDownloaderPlugin plugin) {
         this.plugin = plugin;
-        this.defaultDownloadPath = defaultDownloadPath;
-        this.defaultSpeedLimit = defaultSpeedLimit;
+        this.defaultSpeedLimit = plugin.getConfig().getLong("default-download-speed", 1) * 1024 * 1024;
+        this.defaultSavePath = Path.of(plugin.getConfig().getString("default-download-path", "downloads"));
     }
 
-    public void downloadFile(String link, String outputPath, Double speedLimit, CommandSender sender) {
-        if (outputPath == null || outputPath.isEmpty()) {
-            outputPath = defaultDownloadPath + link.substring(link.lastIndexOf('/') + 1);
-        }
-        if (speedLimit == null) {
-            speedLimit = defaultSpeedLimit;
-        }
+    public void updateConfig(long speedLimit, Path savePath) {
+        this.defaultSpeedLimit = speedLimit * 1024 * 1024;
+        this.defaultSavePath = savePath;
+    }
 
-        final String finalOutputPath = outputPath;
-        final double finalSpeedLimit = speedLimit;
+    public void downloadFile(String fileURL, Path savePath, long speedLimit) {
+        try {
+            if (!Files.exists(savePath.getParent())) {
+                Files.createDirectories(savePath.getParent());
+            }
 
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try (BufferedInputStream in = new BufferedInputStream(new URL(link).openStream());
-                 FileOutputStream fileOutputStream = new FileOutputStream(finalOutputPath)) {
+            HttpURLConnection connection = (HttpURLConnection) new URL(fileURL).openConnection();
+            connection.setRequestMethod("GET");
+            connection.connect();
 
-                HttpURLConnection connection = (HttpURLConnection) new URL(link).openConnection();
-                int fileSize = connection.getContentLength();
-                String fileName = link.substring(link.lastIndexOf('/') + 1);
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                plugin.getLogger().severe("Failed to connect to URL: " + fileURL);
+                return;
+            }
 
-                if (fileSize <= 0) {
-                    sender.sendMessage("§cFile size could not be determined. Download aborted.");
-                    return;
-                }
+            long fileSize = connection.getContentLengthLong();
+            if (fileSize <= 0) {
+                plugin.getLogger().warning("File size could not be determined. Proceeding with unknown file size...");
+            }
 
+            try (InputStream inputStream = connection.getInputStream();
+                 FileOutputStream outputStream = new FileOutputStream(savePath.toFile())) {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
-                double speedLimitBytes = finalSpeedLimit * 1024 * 1024; // Convert speed limit to bytes per second
-                long startTime = System.currentTimeMillis();
+                long totalBytesDownloaded = 0;
+                long startTime = System.nanoTime();
 
-                int downloaded = 0;
-                DecimalFormat df = new DecimalFormat("#.##");
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                    totalBytesDownloaded += bytesRead;
 
-                sender.sendMessage("§aStarting download: " + fileName);
-                while ((bytesRead = in.read(buffer, 0, buffer.length)) != -1) {
-                    fileOutputStream.write(buffer, 0, bytesRead);
-                    downloaded += bytesRead;
+                    // Display progress
+                    double progress = (fileSize > 0)
+                            ? (totalBytesDownloaded * 100.0 / fileSize)
+                            : -1;
+                    String progressText = (progress >= 0)
+                            ? String.format("%.2f%%", progress)
+                            : "Unknown";
 
-                    long elapsedTime = System.currentTimeMillis() - startTime;
-                    double currentSpeed = (downloaded / (elapsedTime / 1000.0));
+                    Bukkit.getScheduler().runTask(plugin, () -> plugin.getLogger().info(
+                            String.format("Downloading: %s (Progress: %s, Downloaded: %.2f MB)",
+                                    savePath.getFileName(),
+                                    progressText,
+                                    totalBytesDownloaded / (1024.0 * 1024.0))
+                    ));
 
-                    // Sleep if download speed exceeds limit
-                    if (currentSpeed > speedLimitBytes) {
-                        Thread.sleep((long) ((currentSpeed - speedLimitBytes) / speedLimitBytes * 1000));
+                    // Throttle speed
+                    long elapsedTime = System.nanoTime() - startTime;
+                    double downloadSpeed = (totalBytesDownloaded / 1024.0 / 1024.0) / (elapsedTime / 1e9);
+                    if (downloadSpeed > speedLimit) {
+                        Thread.sleep((long) ((downloadSpeed - speedLimit) * 1000));
                     }
-
-                    // Calculate progress and send message
-                    int percentage = (int) ((downloaded / (double) fileSize) * 100);
-                    String downloadedMB = df.format(downloaded / (1024.0 * 1024.0));
-                    String totalMB = df.format(fileSize / (1024.0 * 1024.0));
-
-                    sender.sendMessage("§eFileDownloader: " + fileName +
-                            " §7[" + percentage + "%] " +
-                            downloadedMB + "MB / " + totalMB + "MB");
                 }
 
-                sender.sendMessage("§aDownload Complete: " + finalOutputPath);
-
-            } catch (Exception e) {
-                plugin.getLogger().severe("Error downloading file: " + e.getMessage());
-                sender.sendMessage("§cError downloading file. Check the console for details.");
+                plugin.getLogger().info("Download completed: " + savePath.getFileName());
             }
-        });
+        } catch (IOException | InterruptedException e) {
+            plugin.getLogger().severe("Error downloading file: " + e.getMessage());
+        }
+    }
+
+    public Path getDefaultSavePath() {
+        return defaultSavePath;
+    }
+
+    public long getDefaultSpeedLimit() {
+        return defaultSpeedLimit;
     }
 }
