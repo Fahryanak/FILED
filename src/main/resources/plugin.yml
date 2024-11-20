@@ -1,9 +1,0 @@
-name: FileDownloader
-version: 1.0
-main: com.hansproduction.filed.FileDownloaderPlugin
-api-version: 1.21
-commands:
-  filed:
-    description: File downloader commands
-    usage: /filed <down/reload> ...
-    permission: filed.use
