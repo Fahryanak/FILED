@@ -21,6 +21,9 @@ jobs:
         with:
          java-version: '21'
          distribution: 'temurin'
+      
+      - name: clean
+        run: mvn dependency:purge-local-repository
 
       - name: Build with Maven
         run: mvn clean install
