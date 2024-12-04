@@ -1,0 +1,28 @@
+name: Build Minecraft Plugin
+
+on:
+  push:
+    branches:
+      - main  # Ganti dengan nama branch yang sesuai jika diperlukan
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'  # Sesuaikan dengan versi JDK yang diperlukan untuk plugin
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Upload artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-plugin
+          path: build/libs/*.jar  # Ganti dengan path output plugin jika berbeda
