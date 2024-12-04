@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.hanz.filed'
+version = '1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17) // PaperMC membutuhkan Java 17
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://repo.papermc.io/repository/maven-public/' // Repositori PaperMC
+    }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.3-R0.1-SNAPSHOT' // Versi terbaru PaperMC API
+    implementation 'org.yaml:snakeyaml:2.0' // Untuk manipulasi YAML
+}
+
+tasks {
+    jar {
+        // Sertakan plugin.yml dan resources dalam jar
+        from {
+            configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        }
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        from("src/main/resources") {
+            include "plugin.yml"
+            include "config.yml"
+        }
+    }
+
+    build {
+        dependsOn jar
+    }
+}

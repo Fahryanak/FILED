@@ -1,0 +1,8 @@
+name: FILED
+version: 1.0
+main: com.hanz.filed.filed-main.java
+api-version: 1.13
+commands:
+  download:
+    description: Download a file or YouTube video/audio
+    usage: /download <link> <download_path> [file_name]

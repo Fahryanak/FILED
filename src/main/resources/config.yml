@@ -1,0 +1,2 @@
+downloadThreads: 6
+maxDownloadSpeed: 1024 # In KB/s
