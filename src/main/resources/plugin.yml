@@ -1,8 +1,10 @@
 name: FILED
+main: com.hanz.filed.filedmain
 version: 1.0
-main: com.hanz.filed.filed-main.java
-api-version: 1.13
+api-version: 1.20
+description: A plugin to download files and YouTube videos
+author: Fahryanak
 commands:
-  download:
-    description: Download a file or YouTube video/audio
-    usage: /download <link> <download_path> [file_name]
+  filed:
+    description: FILED plugin commands
+    usage: /filed <down|reload>
