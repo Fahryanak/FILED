@@ -14,11 +14,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
+      
         uses: actions/setup-java@v4
         with:
           java-version: '17'  # Sesuaikan dengan versi JDK yang diperlukan untuk plugin
           distribution: 'temurin'
-
+      
+      - name: EXECUTE
+        run: chmod +x gradlew
       - name: Build with Gradle
         run: ./gradlew build
 
