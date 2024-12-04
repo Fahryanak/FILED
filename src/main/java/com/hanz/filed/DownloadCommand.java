@@ -12,7 +12,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 
 public class DownloadCommand implements CommandExecutor {
-    private final filed-main plugin;
+    private final filedmain plugin;
 
     public DownloadCommand(DownloadPlugin plugin) {
         this.plugin = plugin;
